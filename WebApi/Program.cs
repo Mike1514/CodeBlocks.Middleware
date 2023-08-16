@@ -9,6 +9,8 @@ var logger = NLog.LogManager.Setup().LoadConfigurationFromAppSettings().GetCurre
 logger.Debug("init main");
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Host.UseNLog();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -17,14 +19,15 @@ builder.Services.AddCors(p => p.AddPolicy("corsapp", builder =>
     builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader();
 }));
 
-var app = builder.Build();
-if (app.Environment.IsDevelopment())
+// Create the 'Logs' folder if it doesn't exist
+var logsFolderPath = Path.Combine(builder.Environment.ContentRootPath, "Logs");
+if (!Directory.Exists(logsFolderPath))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    app.UseDeveloperExceptionPage();
-
+    Directory.CreateDirectory(logsFolderPath);
 }
+
+var app = builder.Build();
+
 app.UseHttpsRedirection();
 app.UseJsonExceptionMiddleware();
 app.UseCors("corsapp");

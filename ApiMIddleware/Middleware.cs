@@ -101,8 +101,9 @@ namespace CodeBlocksMiddleware
             //..and finally, assign the read body back to the request body, which is allowed because of EnableRewind()
             request.Body.Seek(0, SeekOrigin.Begin);
 
-            return $"{request.Method} {request.ContentType} {request.Path} {request.QueryString} {request.HttpContext.Connection} " +
-                   $"{request.HttpContext.Request.Host.Value} {request.Cookies.Count} {request.Protocol} {request.Scheme} {bodyAsText}";
+            return $"{request.Method} {request.ContentType} {request.Path} {request.QueryString} {request.Body.ReadAsync(buffer, 0, buffer.Length)}" +
+                   $" {request.HttpContext.Connection} {request.HttpContext.Request.Host.Value} {request.Cookies.Count} {request.Protocol}" +
+                   $" {request.Scheme} {bodyAsText}";
         }
   
     }
