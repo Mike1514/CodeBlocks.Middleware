@@ -1,36 +1,35 @@
 ﻿using System.Text;
-using Microsoft.AspNetCore.Builder;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using NLog;
 
-
 namespace CodeBlocksMiddleware
 {
-
-    public class JsonExceptionMiddleware
+    public class LogExceptionMiddlevare
     {
         private readonly RequestDelegate _next;
-        private readonly JsonSerializerSettings _jsonSettings;
         private readonly Logger _logger = LogManager.GetCurrentClassLogger();
-
-
-        public JsonExceptionMiddleware(RequestDelegate next)
+        public LogExceptionMiddlevare(RequestDelegate next)
         {
             _next = next ?? throw new ArgumentNullException(nameof(next));
-
-            _jsonSettings = new JsonSerializerSettings()
-            {
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-                Formatting = Formatting.Indented,
-                ContractResolver = new CamelCasePropertyNamesContractResolver(),
-                NullValueHandling = NullValueHandling.Ignore
-            };
         }
         public async Task Invoke(HttpContext context)
         {
             var requestData = await FormatRequest(context.Request);
+            //byte array handling
+            if (context.Request.Headers.ContainsKey("Content-Type") &&
+                (context.Request.Headers["Content-Type"].ToString().StartsWith("image/jpeg") ||
+                 context.Request.Headers["Content-Type"].ToString().StartsWith("image/png")))
+            {
+                var memoryStream = new MemoryStream();
+                await context.Request.Body.CopyToAsync(memoryStream);
+                var byteArray = memoryStream.ToArray();
+
+                // Convert the byte array to a readable string for logging
+                var byteArrayString = Encoding.UTF8.GetString(byteArray);
+
+                // Log the byte array content
+                _logger.Error($"Byte array caught: {byteArrayString}");
+            }
             try
             {
                 await _next(context);
@@ -90,6 +89,7 @@ namespace CodeBlocksMiddleware
             //This line allows us to set the reader for the request back at the beginning of its stream.
             request.EnableBuffering();
 
+
             //We now need to read the request stream.  First, we create a new byte[] with the same length as the request stream...
             var buffer = new byte[Convert.ToInt32(request.ContentLength)];
 
@@ -101,17 +101,11 @@ namespace CodeBlocksMiddleware
             //..and finally, assign the read body back to the request body, which is allowed because of EnableRewind()
             request.Body.Seek(0, SeekOrigin.Begin);
 
-            return $"{request.Method} {request.ContentType} {request.Path} {request.QueryString} {request.Body.ReadAsync(buffer, 0, buffer.Length)}" +
+            return $" {request.Method} {request.ContentType} {request.Path} {request.QueryString} {request.Body.ReadAsync(buffer, 0, buffer.Length)}" +
                    $" {request.HttpContext.Connection} {request.HttpContext.Request.Host.Value} {request.Cookies.Count} {request.Protocol}" +
-                   $" {request.Scheme} {bodyAsText}";
+                   $" {request.Scheme} {request.Body} {bodyAsText}";
         }
-  
-    }
-    public static class JsonExceptionMiddlewareExtensions
-    {
-        public static IApplicationBuilder UseJsonExceptionMiddleware(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<JsonExceptionMiddleware>();
-        }
+
     }
 }
+
